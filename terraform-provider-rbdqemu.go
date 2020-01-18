@@ -312,11 +312,10 @@ func rsRbdCreate (d *schema.ResourceData, m interface{}) error {
   f_log (fmt.Sprintf ("{%s}", qemu_img_cmd)) ;
   _, err_buf, fault = f_ssh (h, qemu_img_cmd) ;
   if (fault != nil) {
-    f_log (fmt.Sprintf ("WARNING: %", fault)) ;
-    return fault ;
+    f_log (fmt.Sprintf ("WARNING: %s", fault)) ;
   }
   if (len(err_buf) > 0) {
-    return errors.New(err_buf)
+    f_log (err_buf)
   }
   return nil ;
 }
