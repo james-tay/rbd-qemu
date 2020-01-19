@@ -6,47 +6,25 @@
      qemu_hosts - a list of qemu hypevisor hosts
      ssh_private_key - path to key for logging into ceph and hypervisor hosts
 
-   For each rbd image resource, we need to know
+   Each VM needs to boot from a cloned OS disk. For such a resource, we need
+     osd_pool  - the pool the rbd clone is performed in
+     snap_name - the snapshot we'll be cloning from
+     dst_name  - the new clone created from the snapshot
+
+   For each rbd disk resource, we need to know
      osd_pool - the pool the rbd image will live in
      img_name - name of the rbd image
      img_size - size of the rbd image
 
    For each qemu VM resource, we need to know
-     name - the name of the VM
-     cpus - number of vCPUs
-     mem_mb - amount of memory
-     vlan - the VLAN the NIC is attached to
-     mac - the mac address of the NIC
-     vnc - the display instance, eg (":10")
-     img_name - the RBD image that will be the OS disk
-
-   Thus, here is a reference terraform configuration that uses this provider
-   to provision an RBD image and then instantiate a qemu VM.
-
-     provider "rbdqemu" {
-       ceph_rbduser = "admin"
-       ceph_hosts = [ "192.168.10.20", "192.168.10.18", "192.168.10.15" ]
-       qemu_hosts = [ "192.168.3.100", "192.168.3.101", "192.168.3.102" ]
-       ssh_private_key = "/root/.ssh/id_ed25519"
-     }
-
-     resource "rbdqemu_image" "helloImg" {
-       osd_pool = "rbd"
-       img_name = "helloImg"
-       img_size = "6M"
-     }
-
-     resource "rbdqemu_vm" "helloVm" {
-       name = "helloVm"
-       cpus = 1
-       mem_mb = 2048
-       vlan = 10
-       mac = "de:ad:be:ef:ca:fe"
-       vnc = ":10"
-       osd_pool = "rbd"
-       img_name = "helloImg"
-       depends_on = [rbd_image.helloImg]
-     }
+     name        - the name of the VM
+     cpus        - number of vCPUs
+     mem_mb      - amount of memory
+     vlan        - the VLAN the NIC is attached to
+     mac         - the mac address of the NIC
+     vnc         - the display instance, eg (":10")
+     boot_disk   - the rbd boot image
+     extra_disks - an array of optional disks attached to the VM
 
    Recall that terraform expects us to conform to a naming format :
 
@@ -82,7 +60,8 @@ import (
 ) ;
 
 const cfg_providerName string = "rbdqemu" ;
-const cfg_rbdResourceName string = cfg_providerName + "_image" ;
+const cfg_rbdBootResourceName string = cfg_providerName + "_boot" ;
+const cfg_rbdDiskResourceName string = cfg_providerName + "_disk" ;
 const cfg_vmResourceName string = cfg_providerName + "_vm" ;
 const cfg_vmNamePrefix = "tf" ;
 const cfg_logFile string = "provider.log" ;
@@ -555,7 +534,13 @@ func rbdConfig (d *schema.ResourceData) (interface{}, error) {
 /* Define rbd *RESOURCE* schema here */
 /* ================================= */
 
-func rbdItem () *schema.Resource {
+func rbdBootItem () *schema.Resource {
+  return &schema.Resource {
+
+  }
+}
+
+func rbdDiskItem () *schema.Resource {
   return &schema.Resource {
     Create: rsRbdCreate,
     Read:   rsRbdRead,
@@ -617,7 +602,7 @@ func vmItem () *schema.Resource {
         Type: schema.TypeString,
         Required: true,
       },
-      "img_name": {
+      "boot_disk": {
         Type: schema.TypeString,
         Required: true,
       },
@@ -656,7 +641,8 @@ func rbdProvider() terraform.ResourceProvider {
       },
     },
     ResourcesMap: map[string] *schema.Resource {
-      cfg_rbdResourceName: rbdItem (),
+      cfg_rbdBootResourceName: rbdBootItem (),
+      cfg_rbdDiskResourceName: rbdDiskItem (),
       cfg_vmResourceName: vmItem (),
     },
     ConfigureFunc: rbdConfig,
