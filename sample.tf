@@ -8,7 +8,7 @@ provider "rbdqemu" {
 resource "rbdqemu_boot" "osDisk" {
   osd_pool = "rbd"
   snap_name = "tmpl-debian10-os@initial"
-  dst_name = "helloOS"
+  img_name = "helloOS"
 }
 
 resource "rbdqemu_disk" "dataDisk" {

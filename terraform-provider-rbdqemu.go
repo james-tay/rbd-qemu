@@ -9,7 +9,7 @@
    Each VM needs to boot from a cloned OS disk. For such a resource, we need
      osd_pool  - the pool the rbd clone is performed in
      snap_name - the snapshot we'll be cloning from
-     dst_name  - the new clone created from the snapshot
+     img_name  - the new clone created from the snapshot
 
    For each rbd disk resource, we need to know
      osd_pool - the pool the rbd image will live in
@@ -250,10 +250,24 @@ func f_getHypervisor (mem_mb int) string {
 /* ------------------------------------------------------------------------- */
 
 func rsRbdBootCreate (d *schema.ResourceData, m interface{}) error {
-  f_log ("") ;
 
+  osd_pool := d.Get("osd_pool").(string) ;
+  snap_name := d.Get("snap_name").(string) ;
+  img_name := d.Get("img_name").(string) ;
+  f_log (fmt.Sprintf ("in %s, %s -> %s", osd_pool, snap_name, img_name)) ;
 
+  rbd_cmd := fmt.Sprintf ("rbd clone %s %s", snap_name, img_name) ;
+  f_log (fmt.Sprintf ("{%s}", rbd_cmd)) ;
+  _, err_buf, fault := f_ssh (G_ceph_hosts[0], rbd_cmd) ;
+  if (fault != nil) {
+    f_log (fmt.Sprintf ("WARNING: %s", fault)) ;
+    return fault ;
+  } else if (len(err_buf) > 0) {
+    return errors.New (err_buf) ;
+  } 
 
+  f_log ("returning ID: " + osd_pool + "/" + img_name) ;
+  d.SetId (osd_pool + "/" + img_name) ;	/* this indicates success */
   return nil ;
 }
 
@@ -301,7 +315,7 @@ func rsRbdDiskCreate (d *schema.ResourceData, m interface{}) error {
   f_log (fmt.Sprintf ("{%s}", qemu_img_cmd)) ;
   _, err_buf, fault = f_ssh (h, qemu_img_cmd) ;
   if (fault != nil) {
-    f_log (fmt.Sprintf ("WARNING: %s", fault)) ;
+    f_log (fmt.Sprintf ("ignoring: %s", fault)) ;
   }
   if (len(err_buf) > 0) {
     f_log (err_buf)
@@ -317,6 +331,7 @@ func rsRbdRead (d *schema.ResourceData, m interface{}) error {
 
   result, fault := f_rbdExists(osd_pool, img_name) ;
   if (fault == nil) && (result == true) {
+    f_log ("returning ID: " + osd_pool + "/" + img_name) ;
     d.SetId (osd_pool + "/" + img_name) ;	/* this indicates success */
   }
   return nil ;
@@ -427,9 +442,9 @@ func rsVmCreate (d *schema.ResourceData, m interface{}) error {
   name := d.Get("name").(string) ;
   mem_mb := d.Get("mem_mb").(int) ;
   osd_pool := d.Get("osd_pool").(string) ;
-  img_name := d.Get("img_name").(string) ;
-  f_log (fmt.Sprintf ("name:%s cpus:%d mem_mb:%d vlan:%d vnc:%s img_name:%s",
-                      name, cpus, mem_mb, vlan, vnc, img_name)) ;
+  boot_disk := d.Get("boot_disk").(string) ;
+  f_log (fmt.Sprintf ("name:%s cpus:%d mem_mb:%d vlan:%d vnc:%s boot_disk:%s",
+                      name, cpus, mem_mb, vlan, vnc, boot_disk)) ;
 
   h := f_getHypervisor (mem_mb) ;
   if (len(h) < 1) {
@@ -456,7 +471,7 @@ func rsVmCreate (d *schema.ResourceData, m interface{}) error {
                            cpus,
                            mem_mb,
                            vnc,
-                           osd_pool, img_name,
+                           osd_pool, boot_disk,
                            vlan, mac) ;
   _, err_buf, fault := f_ssh (h, qemu_cmd)
   if (fault != nil) {
@@ -477,7 +492,9 @@ func rsVmRead (d *schema.ResourceData, m interface{}) error {
   f_log ("searching for : " + name) ;
   hypervisor, _, fault := f_vmExists (name) ;
   if (fault != nil) && (len(hypervisor) > 0) {
-    d.SetId (cfg_vmNamePrefix + "-" + name) ;   /* this indicates success */
+    id := cfg_vmNamePrefix + "-" + name ;
+    f_log ("returning ID: " + id) ;
+    d.SetId (id) ;   /* this indicates success */
   }
   return nil ;
 }
@@ -564,7 +581,7 @@ func rbdBootItem () *schema.Resource {
         Type: schema.TypeString,
         Required: true,
       },
-      "dst_name": {
+      "img_name": {
         Type: schema.TypeString,
         Required: true,
       },
