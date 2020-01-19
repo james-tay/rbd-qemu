@@ -537,6 +537,20 @@ func rbdConfig (d *schema.ResourceData) (interface{}, error) {
 func rbdBootItem () *schema.Resource {
   return &schema.Resource {
 
+    Schema: map[string] *schema.Schema {
+      "osd_pool": {
+        Type: schema.TypeString,
+        Required: true,
+      },
+      "snap_name": {
+        Type: schema.TypeString,
+        Required: true,
+      },
+      "dst_name": {
+        Type: schema.TypeString,
+        Required: true,
+      },
+    },
   }
 }
 
@@ -605,6 +619,13 @@ func vmItem () *schema.Resource {
       "boot_disk": {
         Type: schema.TypeString,
         Required: true,
+      },
+      "extra_disks": {
+        Type: schema.TypeList,
+        Elem: &schema.Schema {
+          Type: schema.TypeString,
+        },
+        Optional: true,
       },
     },
   }
