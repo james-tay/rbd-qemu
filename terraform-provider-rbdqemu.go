@@ -246,8 +246,18 @@ func f_getHypervisor (mem_mb int) string {
 }
 
 /* ------------------------------------------------------------------------- */
+/* RBD Boot/Disk Resources                                                   */
+/* ------------------------------------------------------------------------- */
 
-func rsRbdCreate (d *schema.ResourceData, m interface{}) error {
+func rsRbdBootCreate (d *schema.ResourceData, m interface{}) error {
+  f_log ("") ;
+
+
+
+  return nil ;
+}
+
+func rsRbdDiskCreate (d *schema.ResourceData, m interface{}) error {
 
   osd_pool := d.Get("osd_pool").(string) ;
   img_name := d.Get("img_name").(string) ;
@@ -347,6 +357,8 @@ func rsRbdExists (d *schema.ResourceData, m interface{}) (bool, error) {
   return f_rbdExists(osd_pool, img_name) ;
 }
 
+/* ------------------------------------------------------------------------- */
+/* VM Resource                                                               */
 /* ------------------------------------------------------------------------- */
 
 /*
@@ -530,12 +542,18 @@ func rbdConfig (d *schema.ResourceData) (interface{}, error) {
   return nil, nil ;
 }
 
-/* ================================= */
-/* Define rbd *RESOURCE* schema here */
-/* ================================= */
+/* ============================================================== */
+/* Define rbd *RESOURCE* schema here                              */
+/* https://www.terraform.io/docs/extend/schemas/schema-types.html */
+/* ============================================================== */
 
 func rbdBootItem () *schema.Resource {
   return &schema.Resource {
+    Create: rsRbdBootCreate,
+    Read:   rsRbdRead,
+    Update: rsRbdUpdate,
+    Delete: rsRbdDelete,
+    Exists: rsRbdExists,
 
     Schema: map[string] *schema.Schema {
       "osd_pool": {
@@ -556,7 +574,7 @@ func rbdBootItem () *schema.Resource {
 
 func rbdDiskItem () *schema.Resource {
   return &schema.Resource {
-    Create: rsRbdCreate,
+    Create: rsRbdDiskCreate,
     Read:   rsRbdRead,
     Update: rsRbdUpdate,
     Delete: rsRbdDelete,
