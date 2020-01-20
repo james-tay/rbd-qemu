@@ -11,9 +11,15 @@ resource "rbdqemu_boot" "osDisk" {
   img_name = "helloOS"
 }
 
-resource "rbdqemu_disk" "dataDisk" {
+resource "rbdqemu_disk" "dataDisk1" {
   osd_pool = "rbd"
-  img_name = "helloData"
+  img_name = "helloData1"
+  img_size = "6M"
+}
+
+resource "rbdqemu_disk" "dataDisk2" {
+  osd_pool = "rbd"
+  img_name = "helloData2"
   img_size = "6M"
 }
 
@@ -27,11 +33,13 @@ resource "rbdqemu_vm" "helloVm" {
   osd_pool = "rbd"
   boot_disk = "helloOS"
   extra_disks = [
-    "helloData"
+    "helloData1",
+    "helloData2"
   ]
   depends_on = [
     rbdqemu_boot.osDisk,
-    rbdqemu_disk.dataDisk
+    rbdqemu_disk.dataDisk1,
+    rbdqemu_disk.dataDisk2
   ]
 }
 

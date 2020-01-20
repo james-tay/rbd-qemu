@@ -446,6 +446,26 @@ func rsVmCreate (d *schema.ResourceData, m interface{}) error {
   f_log (fmt.Sprintf ("name:%s cpus:%d mem_mb:%d vlan:%d vnc:%s boot_disk:%s",
                       name, cpus, mem_mb, vlan, vnc, boot_disk)) ;
 
+  /* if "extra_disks" were requested, identify them now */
+
+  extra_disks_args := ""
+  extra_disks_list := d.Get("extra_disks").([]interface{}) ;
+  if (extra_disks_list != nil) {
+    for i:=0 ; i < len(extra_disks_list) ; i++ {
+      if (len(extra_disks_args) > 0) {
+        extra_disks_args = extra_disks_args + " " ;
+      }
+      extra_disks_args = extra_disks_args +
+                         fmt.Sprintf ("-drive format=rbd,file=rbd:%s/%s," +
+                                      "cache=writeback",
+                                      osd_pool, extra_disks_list[i]) ;
+    }
+    extra_disks_args = extra_disks_args + " " ;
+    f_log ("extra_disks_args: " + extra_disks_args) ;
+  }
+
+  /* identify the hypervisor to run this VM on, and then fire it up */
+
   h := f_getHypervisor (mem_mb) ;
   if (len(h) < 1) {
     return nil ;
@@ -459,6 +479,7 @@ func rsVmCreate (d *schema.ResourceData, m interface{}) error {
                            "-vnc %s " +
                            "-drive format=rbd,file=rbd:%s/%s," +
                              "cache=writeback " +
+                           extra_disks_args +
                            "-nic tap,script=/root/bin/add_tap%d.sh," +
                              "model=virtio-net-pci,mac=%s " +
                            "-vga vmware " +
@@ -473,6 +494,7 @@ func rsVmCreate (d *schema.ResourceData, m interface{}) error {
                            vnc,
                            osd_pool, boot_disk,
                            vlan, mac) ;
+  f_log (fmt.Sprintf ("{%s}", qemu_cmd)) ;
   _, err_buf, fault := f_ssh (h, qemu_cmd)
   if (fault != nil) {
     f_log (fmt.Sprintf ("WARNING: %s", fault)) ;
